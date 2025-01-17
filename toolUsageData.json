@@ -1,0 +1,25 @@
+ {
+       "tools": [
+           {
+               "name": "ドリル",
+               "borrower": "",
+               "location": "",
+               "borrowDate": "",
+               "returnDate": ""
+           },
+           {
+               "name": "スパナ",
+               "borrower": "",
+               "location": "",
+               "borrowDate": "",
+               "returnDate": ""
+           },
+           {
+               "name": "ノコギリ",
+               "borrower": "",
+               "location": "",
+               "borrowDate": "",
+               "returnDate": ""
+           }
+       ]
+   }
