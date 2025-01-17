@@ -1,152 +1,225 @@
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
-```
-
-### ステップ3: Firebaseの初期化
-
-Firebaseプロジェクトの設定からFirebaseの設定スニペットを取得し、Firebaseを初期化します。以下のスニペットの`YOUR_API_KEY`, `YOUR_PROJECT_ID`などを実際の値に置き換えます。
-
-```javascript
-const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
-};
-
-// Firebaseを初期化
-const app = firebase.initializeApp(firebaseConfig);
-const firestore = firebase.firestore();
-```
-
-### ステップ4: データをFirebaseに保存
-
-`addToolUsage()`関数を以下のように修正して、ローカルストレージの代わりにFirebase Firestoreにデータを保存します。
-
-```javascript
-function addToolUsage() {
-    const borrowerName = document.getElementById('borrower-name').value;
-    const toolName = document.getElementById('tool-name').value;
-    const locationName = document.getElementById('location-name').value;
-    const borrowDate = document.getElementById('borrow-date').value;
-    const returnDate = document.getElementById('return-date').value;
-
-    if (borrowerName && toolName && locationName && borrowDate && returnDate) {
-        // Firestoreにデータを保存
-        firestore.collection("toolUsage").add({
-            borrower: borrowerName,
-            tool: toolName,
-            location: locationName,
-            borrowDate: borrowDate,
-            returnDate: returnDate
-        })
-        .then(() => {
-            console.log("データが追加されました");
-            updateToolInfo(); // ツール情報を更新
-        })
-        .catch((error) => {
-            console.error("エラーが発生しました: ", error);
-        });
-
-        // フィールドを空にする
-        document.getElementById('borrower-name').value = '';
-        document.getElementById('location-name').value = '';
-        document.getElementById('borrow-date').value = '';
-        document.getElementById('return-date').value = '';
-        document.getElementById('tool-name').selectedIndex = 0; // プルダウンをリセット
-    } else {
-        alert("すべてのフィールドを入力してください。");
-    }
-}
-```
-
-### ステップ5: Firebaseからデータを取得
-
-`fetchToolData()`関数を以下のように修正し、Firebase Firestoreからデータを取得します。
-
-```javascript
-function fetchToolData() {
-    firestore.collection("toolUsage").onSnapshot((snapshot) => {
-        toolUsageData = {};
-        snapshot.forEach((doc) => {
-            const data = doc.data();
-            toolUsageData[data.tool] = {
-                borrower: data.borrower,
-                location: data.location,
-                borrowDate: data.borrowDate,
-                returnDate: data.returnDate
-            };
-        });
-        updateToolInfo();
-    });
-}
-```
-
-### ステップ6: 全体のコード
-
-全体のコードの一部を修正してみてください。HTMLの`<script>`部分は次のようになります。
-
-```html
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
-<script>
-    // Firebaseの設定
-    const firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT_ID.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
-    };
-
-    // Firebaseを初期化
-    const app = firebase.initializeApp(firebaseConfig);
-    const firestore = firebase.firestore();
-
-    // 工具の使用状況を管理するデータ
-    let toolUsageData = {};
-
-    function updateToolInfo() {
-        const toolList = document.getElementById('tool-list');
-        toolList.innerHTML = '';
-
-        for (const tool in toolUsageData) {
-            const listItem = document.createElement('li');
-            listItem.classList.add('tools');
-
-            const status = toolUsageData[tool].borrower 
-                ? `${toolUsageData[tool].borrower} が ${toolUsageData[tool].location}で ${toolUsageData[tool].borrowDate} に借り、 ${toolUsageData[tool].returnDate} に返却予定。` 
-                : '使用中ではありません';
-
-            listItem.innerHTML = `<span class="tool-status">${tool}: ${status}</span> <button class="delete-button" onclick="deleteToolUsage('${tool}')">削除</button>`;
-            toolList.appendChild(listItem);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工具管理システム</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f8f8;
         }
-    }
+        header {
+            background-color: #007BFF;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        nav {
+            margin: 10px 0;
+        }
+        nav a {
+            margin: 0 15px;
+            color: white;
+            text-decoration: none;
+        }
+        .container {
+            padding: 20px;
+        }
+        footer {
+            text-align: center;
+            padding: 10px;
+            background-color: #007BFF;
+            color: white;
+        }
+        .tool-list, .guide {
+            background-color: #fff;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #007BFF;
+        }
+        .tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tool-usage-form input, .tool-usage-form select {
+            margin: 5px;
+            padding: 5px;
+        }
+        .tool-status {
+            color: #555;
+            font-style: italic;
+        }
+        .delete-button {
+            background-color: #FF5733;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .submit-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+    <script>
+        // 工具の使用状況を管理するためのデータ
+        let toolUsageData = JSON.parse(localStorage.getItem('toolUsageData')) || {
+            'ドリル': { borrower: '', location: '', borrowDate: '', returnDate: '' },
+            'スパナ': { borrower: '', location: '', borrowDate: '', returnDate: '' },
+            'ノコギリ': { borrower: '', location: '', borrowDate: '', returnDate: '' }
+        };
 
-    function addToolUsage() {
-        // 省略：先ほどのコードをここに追加...
-    }
+        function updateToolInfo() {
+            const toolList = document.getElementById('tool-list');
+            toolList.innerHTML = '';
 
-    function fetchToolData() {
-        firestore.collection("toolUsage").onSnapshot((snapshot) => {
-            toolUsageData = {};
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                toolUsageData[data.tool] = {
-                    borrower: data.borrower,
-                    location: data.location,
-                    borrowDate: data.borrowDate,
-                    returnDate: data.returnDate
-                };
-            });
+            for (const tool in toolUsageData) {
+                const listItem = document.createElement('li');
+                listItem.classList.add('tools');
+
+                const status = toolUsageData[tool].borrower 
+                    ? `${toolUsageData[tool].borrower} が ${toolUsageData[tool].location}で ${toolUsageData[tool].borrowDate} に借り、 ${toolUsageData[tool].returnDate} に返却予定。` 
+                    : '使用中ではありません';
+
+                listItem.innerHTML = `<span class="tool-status">${tool}: ${status}</span> <button class="delete-button" onclick="deleteToolUsage('${tool}')">削除</button>`;
+                toolList.appendChild(listItem);
+            }
+        }
+
+        function addToolUsage() {
+            const borrowerName = document.getElementById('borrower-name').value;
+            const toolName = document.getElementById('tool-name').value;
+            const locationName = document.getElementById('location-name').value;
+            const borrowDate = document.getElementById('borrow-date').value;
+            const returnDate = document.getElementById('return-date').value;
+
+            if (borrowerName && toolName && locationName && borrowDate && returnDate) {
+                toolUsageData[toolName] = { borrower: borrowerName, location: locationName, borrowDate: borrowDate, returnDate: returnDate };
+
+                // ローカルストレージにデータを保存
+                localStorage.setItem('toolUsageData', JSON.stringify(toolUsageData));
+
+                updateToolInfo();
+
+                document.getElementById('borrower-name').value = '';
+                document.getElementById('location-name').value = '';
+                document.getElementById('borrow-date').value = '';
+                document.getElementById('return-date').value = '';
+                document.getElementById('tool-name').selectedIndex = 0; // プルダウンをリセット
+            } else {
+                alert("すべてのフィールドを入力してください。");
+            }
+        }
+
+        function deleteToolUsage(tool) {
+            toolUsageData[tool] = { borrower: '', location: '', borrowDate: '', returnDate: '' };
+            // ローカルストレージにデータを保存
+            localStorage.setItem('toolUsageData', JSON.stringify(toolUsageData));
             updateToolInfo();
-        });
-    }
+        }
 
-    window.onload = function() {
-        fetchToolData(); // ページが読み込まれたときにデータを取得
-    };
-</script>
+        function fetchToolData() {
+            axios.get('https://api.example.com/data') // 実際のAPIエンドポイントに変更する必要があります
+                .then(response => {
+                    console.log(response.data);
+                    // データの処理を行う
+                    // ここでは例として使用状況を更新するための処理を追加します
+                    toolUsageData = response.data; // ここで取得したデータで上書き
+                    localStorage.setItem('toolUsageData', JSON.stringify(toolUsageData));
+                    updateToolInfo(); // 使用状況を更新
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
+
+        window.onload = function() {
+            updateToolInfo();
+            fetchToolData(); // ページが読み込まれたときにデータを取得
+        };
+    </script>
+</head>
+<body>
+    <header>
+        <h1>工具管理システム</h1>
+        <nav>
+            <a href="#home">ホーム</a>
+            <a href="#tools">工具一覧</a>
+            <a href="#usage">使用状況</a>
+            <a href="#guide">運用ガイド</a>
+            <a href="#maintenance">メンテナンス</a>
+            <a href="#contact">お問い合わせ</a>
+        </nav>
+    </header>
+    <div class="container">
+        <section id="home">
+            <h2>ようこそ</h2>
+            <p>このサイトでは、工具の管理およびメンテナンスに関する情報を提供します。</p>
+        </section>
+
+        <section id="tools" class="tool-list">
+            <h2>工具一覧</h2>
+            <ul id="tool-list"></ul>
+        </section>
+
+        <section id="usage" class="tool-list">
+            <h2>工具の使用状況管理</h2>
+            <div class="tool-usage-form">
+                <input type="text" id="borrower-name" placeholder="借りる人の名前">
+                <select id="tool-name">
+                    <option value="">工具名を選択</option>
+                    <option value="ドリル">ドリル</option>
+                    <option value="スパナ">スパナ</option>
+                    <option value="ノコギリ">ノコギリ</option>
+                </select>
+                <input type="text" id="location-name" placeholder="使用場所">
+                <input type="date" id="borrow-date" placeholder="借りた日">
+                <input type="date" id="return-date" placeholder="返却予定日">
+                <button class="submit-button" onclick="addToolUsage()">追加</button>
+            </div>
+            <h3>現在の使用状況:</h3>
+            <ul id="tool-list"></ul>
+        </section>
+
+        <section id="guide" class="guide">
+            <h2>運用ガイド</h2>
+            <p>効率的な工具管理のためのガイドを以下に示します。<br>
+            - 工具の使用状況を定期的にチェックします。<br>
+            - 工具の貸出管理を行い、責任者を明確にします。<br>
+            - 使用後は必ず所定の場所に戻すルールを設けます。</p>
+        </section>
+
+        <section id="maintenance" class="guide">
+            <h2>メンテナンス情報</h2>
+            <p>各工具のメンテナンス手順を確認しましょう。<br>
+            - ドリル：定期的な刃の点検と清掃<br>
+            - スパナ：錆び防止のためにオイル塗布<br>
+            - ノコギリ：刃の研磨を行います。</p>
+        </section>
+
+        <section id="contact">
+            <h2>お問い合わせ</h2>
+            <p>ご質問やご意見がございましたら、メールでお問い合わせください。</p>
+            <p>Email: example@example.com</p>
+        </section>
+    </div>
+    <footer>
+        <p>&copy; 2023 工具管理システム. All rights reserved.</p>
+    </footer>
+</body>
+</html>
