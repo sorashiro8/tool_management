@@ -1,0 +1,152 @@
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+```
+
+### ステップ3: Firebaseの初期化
+
+Firebaseプロジェクトの設定からFirebaseの設定スニペットを取得し、Firebaseを初期化します。以下のスニペットの`YOUR_API_KEY`, `YOUR_PROJECT_ID`などを実際の値に置き換えます。
+
+```javascript
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Firebaseを初期化
+const app = firebase.initializeApp(firebaseConfig);
+const firestore = firebase.firestore();
+```
+
+### ステップ4: データをFirebaseに保存
+
+`addToolUsage()`関数を以下のように修正して、ローカルストレージの代わりにFirebase Firestoreにデータを保存します。
+
+```javascript
+function addToolUsage() {
+    const borrowerName = document.getElementById('borrower-name').value;
+    const toolName = document.getElementById('tool-name').value;
+    const locationName = document.getElementById('location-name').value;
+    const borrowDate = document.getElementById('borrow-date').value;
+    const returnDate = document.getElementById('return-date').value;
+
+    if (borrowerName && toolName && locationName && borrowDate && returnDate) {
+        // Firestoreにデータを保存
+        firestore.collection("toolUsage").add({
+            borrower: borrowerName,
+            tool: toolName,
+            location: locationName,
+            borrowDate: borrowDate,
+            returnDate: returnDate
+        })
+        .then(() => {
+            console.log("データが追加されました");
+            updateToolInfo(); // ツール情報を更新
+        })
+        .catch((error) => {
+            console.error("エラーが発生しました: ", error);
+        });
+
+        // フィールドを空にする
+        document.getElementById('borrower-name').value = '';
+        document.getElementById('location-name').value = '';
+        document.getElementById('borrow-date').value = '';
+        document.getElementById('return-date').value = '';
+        document.getElementById('tool-name').selectedIndex = 0; // プルダウンをリセット
+    } else {
+        alert("すべてのフィールドを入力してください。");
+    }
+}
+```
+
+### ステップ5: Firebaseからデータを取得
+
+`fetchToolData()`関数を以下のように修正し、Firebase Firestoreからデータを取得します。
+
+```javascript
+function fetchToolData() {
+    firestore.collection("toolUsage").onSnapshot((snapshot) => {
+        toolUsageData = {};
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            toolUsageData[data.tool] = {
+                borrower: data.borrower,
+                location: data.location,
+                borrowDate: data.borrowDate,
+                returnDate: data.returnDate
+            };
+        });
+        updateToolInfo();
+    });
+}
+```
+
+### ステップ6: 全体のコード
+
+全体のコードの一部を修正してみてください。HTMLの`<script>`部分は次のようになります。
+
+```html
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js"></script>
+<script>
+    // Firebaseの設定
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT_ID.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Firebaseを初期化
+    const app = firebase.initializeApp(firebaseConfig);
+    const firestore = firebase.firestore();
+
+    // 工具の使用状況を管理するデータ
+    let toolUsageData = {};
+
+    function updateToolInfo() {
+        const toolList = document.getElementById('tool-list');
+        toolList.innerHTML = '';
+
+        for (const tool in toolUsageData) {
+            const listItem = document.createElement('li');
+            listItem.classList.add('tools');
+
+            const status = toolUsageData[tool].borrower 
+                ? `${toolUsageData[tool].borrower} が ${toolUsageData[tool].location}で ${toolUsageData[tool].borrowDate} に借り、 ${toolUsageData[tool].returnDate} に返却予定。` 
+                : '使用中ではありません';
+
+            listItem.innerHTML = `<span class="tool-status">${tool}: ${status}</span> <button class="delete-button" onclick="deleteToolUsage('${tool}')">削除</button>`;
+            toolList.appendChild(listItem);
+        }
+    }
+
+    function addToolUsage() {
+        // 省略：先ほどのコードをここに追加...
+    }
+
+    function fetchToolData() {
+        firestore.collection("toolUsage").onSnapshot((snapshot) => {
+            toolUsageData = {};
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                toolUsageData[data.tool] = {
+                    borrower: data.borrower,
+                    location: data.location,
+                    borrowDate: data.borrowDate,
+                    returnDate: data.returnDate
+                };
+            });
+            updateToolInfo();
+        });
+    }
+
+    window.onload = function() {
+        fetchToolData(); // ページが読み込まれたときにデータを取得
+    };
+</script>
